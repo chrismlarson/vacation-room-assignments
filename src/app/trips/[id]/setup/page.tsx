@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { apiFetch } from '@/lib/api'
 
 const BED_TYPES = ['King', 'Queen', 'Full', 'Twin', 'Sofa Bed', 'Bunk']
 
@@ -27,7 +28,7 @@ export default function SetupPage() {
   const [editRoomName, setEditRoomName] = useState('')
 
   const fetchTrip = useCallback(async () => {
-    const res = await fetch(`/api/trips/${id}`)
+    const res = await apiFetch(`/api/trips/${id}`)
     if (res.ok) {
       const data = await res.json()
       setTrip(data)
@@ -52,7 +53,7 @@ export default function SetupPage() {
     e.preventDefault()
     if (!newRoomName.trim()) return
     setAddingRoom(true)
-    const res = await fetch(`/api/trips/${id}/rooms`, {
+    const res = await apiFetch(`/api/trips/${id}/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newRoomName.trim() }),
@@ -66,13 +67,13 @@ export default function SetupPage() {
 
   async function handleDeleteRoom(roomId: string) {
     if (!confirm('Delete this room and all its beds?')) return
-    await fetch(`/api/trips/${id}/rooms/${roomId}`, { method: 'DELETE' })
+    await apiFetch(`/api/trips/${id}/rooms/${roomId}`, { method: 'DELETE' })
     await fetchTrip()
   }
 
   async function handleRenameRoom(roomId: string) {
     if (!editRoomName.trim()) return
-    await fetch(`/api/trips/${id}/rooms/${roomId}`, {
+    await apiFetch(`/api/trips/${id}/rooms/${roomId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editRoomName.trim() }),
@@ -84,7 +85,7 @@ export default function SetupPage() {
   async function handleAddBed(e: React.FormEvent, roomId: string) {
     e.preventDefault()
     const form = getBedForm(roomId)
-    const res = await fetch(`/api/trips/${id}/beds`, {
+    const res = await apiFetch(`/api/trips/${id}/beds`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roomId, type: form.type, label: form.label.trim() || null }),
@@ -96,18 +97,18 @@ export default function SetupPage() {
   }
 
   async function handleDeleteBed(bedId: string) {
-    await fetch(`/api/trips/${id}/beds/${bedId}`, { method: 'DELETE' })
+    await apiFetch(`/api/trips/${id}/beds/${bedId}`, { method: 'DELETE' })
     await fetchTrip()
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-gray-400">Loading...</div>
+    return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>
   }
 
   if (!trip) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
-        <p className="text-gray-500">Trip not found.</p>
+        <p className="text-gray-400">Trip not found.</p>
         <Link href="/" className="text-blue-600 hover:underline">Back to trips</Link>
       </div>
     )
@@ -119,19 +120,19 @@ export default function SetupPage() {
         <div>
           <Link
             href={`/trips/${id}`}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-gray-400 hover:text-gray-300"
           >
             ← Back to planner
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-1">Room Setup</h1>
-          <p className="text-sm text-gray-500">{trip.name}</p>
+          <h1 className="text-2xl font-bold text-gray-50 mt-1">Room Setup</h1>
+          <p className="text-sm text-gray-400">{trip.name}</p>
         </div>
       </div>
 
       {/* Room list */}
       <div className="space-y-6 mb-8">
         {trip.rooms.length === 0 && (
-          <p className="text-gray-400 text-sm italic">No rooms yet. Add one below.</p>
+          <p className="text-gray-500 text-sm italic">No rooms yet. Add one below.</p>
         )}
 
         {trip.rooms.map((room) => {
@@ -139,9 +140,9 @@ export default function SetupPage() {
           const isEditing = editingRoom === room.id
 
           return (
-            <div key={room.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div key={room.id} className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
               {/* Room header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
                 {isEditing ? (
                   <form
                     onSubmit={(e) => { e.preventDefault(); handleRenameRoom(room.id) }}
@@ -151,7 +152,7 @@ export default function SetupPage() {
                       autoFocus
                       value={editRoomName}
                       onChange={(e) => setEditRoomName(e.target.value)}
-                      className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="flex-1 border border-gray-600 bg-gray-800 text-gray-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                       onKeyDown={(e) => e.key === 'Escape' && setEditingRoom(null)}
                     />
                     <button
@@ -163,24 +164,24 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => setEditingRoom(null)}
-                      className="text-sm text-gray-400 hover:text-gray-600 px-2"
+                      className="text-sm text-gray-500 hover:text-gray-300 px-2"
                     >
                       Cancel
                     </button>
                   </form>
                 ) : (
                   <>
-                    <h2 className="font-semibold text-gray-900">{room.name}</h2>
+                    <h2 className="font-semibold text-gray-50">{room.name}</h2>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => { setEditingRoom(room.id); setEditRoomName(room.name) }}
-                        className="text-xs text-gray-400 hover:text-blue-500"
+                        className="text-xs text-gray-500 hover:text-blue-500"
                       >
                         Rename
                       </button>
                       <button
                         onClick={() => handleDeleteRoom(room.id)}
-                        className="text-xs text-gray-400 hover:text-red-500"
+                        className="text-xs text-gray-500 hover:text-red-500"
                       >
                         Delete
                       </button>
@@ -192,20 +193,20 @@ export default function SetupPage() {
               {/* Beds */}
               <div className="p-4">
                 {room.beds.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic mb-3">No beds yet.</p>
+                  <p className="text-sm text-gray-500 italic mb-3">No beds yet.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2 mb-3">
                     {room.beds.map((bed) => (
                       <div
                         key={bed.id}
-                        className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1.5 text-sm"
+                        className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-3 py-1.5 text-sm"
                       >
-                        <span className="font-medium text-gray-800">
+                        <span className="font-medium text-gray-100">
                           {bed.label ? `${bed.label} (${bed.type})` : bed.type}
                         </span>
                         <button
                           onClick={() => handleDeleteBed(bed.id)}
-                          className="text-gray-300 hover:text-red-400 text-xs font-bold"
+                          className="text-gray-600 hover:text-red-400 text-xs font-bold"
                         >
                           ✕
                         </button>
@@ -220,7 +221,7 @@ export default function SetupPage() {
                     <select
                       value={bedForm.type}
                       onChange={(e) => updateBedForm(room.id, { type: e.target.value })}
-                      className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="border border-gray-600 bg-gray-800 text-gray-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                     >
                       {BED_TYPES.map((t) => (
                         <option key={t} value={t}>{t}</option>
@@ -230,7 +231,7 @@ export default function SetupPage() {
                       value={bedForm.label}
                       onChange={(e) => updateBedForm(room.id, { label: e.target.value })}
                       placeholder="Label (optional)"
-                      className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 w-40"
+                      className="border border-gray-600 bg-gray-800 text-gray-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 w-40"
                     />
                     <button
                       type="submit"
@@ -241,7 +242,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => updateBedForm(room.id, { open: false })}
-                      className="text-sm text-gray-400 hover:text-gray-600"
+                      className="text-sm text-gray-500 hover:text-gray-300"
                     >
                       Cancel
                     </button>
@@ -261,14 +262,14 @@ export default function SetupPage() {
       </div>
 
       {/* Add room form */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Add Room</h2>
+      <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Add Room</h2>
         <form onSubmit={handleAddRoom} className="flex gap-2">
           <input
             value={newRoomName}
             onChange={(e) => setNewRoomName(e.target.value)}
             placeholder="Room name (e.g. Master Bedroom)"
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-gray-600 bg-gray-800 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"

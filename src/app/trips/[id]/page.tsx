@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { apiFetch } from '@/lib/api'
 import {
   DndContext,
   DragEndEvent,
@@ -40,7 +41,7 @@ function SidebarDropZone({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[40px] rounded-lg transition-colors ${isOver ? 'bg-gray-100 ring-2 ring-gray-300' : ''}`}
+      className={`min-h-[40px] rounded-lg transition-colors ${isOver ? 'bg-gray-800 ring-2 ring-gray-600' : ''}`}
     >
       {children}
     </div>
@@ -67,7 +68,7 @@ export default function TripPlannerPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const fetchTrip = useCallback(async () => {
-    const res = await fetch(`/api/trips/${id}`)
+    const res = await apiFetch(`/api/trips/${id}`)
     if (res.ok) setTrip(await res.json())
     setLoading(false)
   }, [id])
@@ -96,7 +97,7 @@ export default function TripPlannerPage() {
     e.preventDefault()
     if (!newFamilyName.trim()) return
     setAddingFamily(true)
-    const res = await fetch(`/api/trips/${id}/families`, {
+    const res = await apiFetch(`/api/trips/${id}/families`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newFamilyName.trim(), color: newFamilyColor }),
@@ -112,7 +113,7 @@ export default function TripPlannerPage() {
   }
 
   async function handleDeleteFamily(familyId: string) {
-    await fetch(`/api/trips/${id}/families/${familyId}`, { method: 'DELETE' })
+    await apiFetch(`/api/trips/${id}/families/${familyId}`, { method: 'DELETE' })
     await fetchTrip()
   }
 
@@ -120,7 +121,7 @@ export default function TripPlannerPage() {
     e.preventDefault()
     if (!newPersonName.trim()) return
     setAddingPerson(true)
-    const res = await fetch(`/api/trips/${id}/people`, {
+    const res = await apiFetch(`/api/trips/${id}/people`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newPersonName.trim(), familyId }),
@@ -134,12 +135,12 @@ export default function TripPlannerPage() {
   }
 
   async function handleDeletePerson(personId: string) {
-    await fetch(`/api/trips/${id}/people/${personId}`, { method: 'DELETE' })
+    await apiFetch(`/api/trips/${id}/people/${personId}`, { method: 'DELETE' })
     await fetchTrip()
   }
 
   async function handleUnassign(personId: string) {
-    await fetch('/api/assignments', {
+    await apiFetch('/api/assignments', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ personId }),
@@ -148,7 +149,7 @@ export default function TripPlannerPage() {
   }
 
   async function handleAssign(personId: string, bedId: string) {
-    await fetch('/api/assignments', {
+    await apiFetch('/api/assignments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ personId, bedId }),
@@ -178,7 +179,7 @@ export default function TripPlannerPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
+      <div className="flex items-center justify-center h-screen text-gray-500">
         Loading...
       </div>
     )
@@ -187,7 +188,7 @@ export default function TripPlannerPage() {
   if (!trip) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
-        <p className="text-gray-500">Trip not found.</p>
+        <p className="text-gray-400">Trip not found.</p>
         <Link href="/" className="text-blue-600 hover:underline">Back to trips</Link>
       </div>
     )
@@ -197,12 +198,12 @@ export default function TripPlannerPage() {
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex flex-col h-screen">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-4 flex-shrink-0">
+        <header className="bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center justify-between gap-4 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/" className="text-gray-400 hover:text-gray-600 text-sm flex-shrink-0">
+            <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm flex-shrink-0">
               ← Trips
             </Link>
-            <h1 className="text-lg font-bold text-gray-900 truncate">{trip.name}</h1>
+            <h1 className="text-lg font-bold text-gray-50 truncate">{trip.name}</h1>
             {trip.listingUrl && (
               <a
                 href={trip.listingUrl}
@@ -216,7 +217,7 @@ export default function TripPlannerPage() {
           </div>
           <Link
             href={`/trips/${id}/setup`}
-            className="flex-shrink-0 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+            className="flex-shrink-0 bg-gray-800 text-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
           >
             Edit Rooms
           </Link>
@@ -224,7 +225,7 @@ export default function TripPlannerPage() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
+          <aside className="w-64 flex-shrink-0 bg-gray-900 border-r border-gray-700 flex flex-col overflow-y-auto">
             <div className="p-3 flex-1">
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Families</h2>
 
@@ -239,11 +240,11 @@ export default function TripPlannerPage() {
                           className="w-3 h-3 rounded-full flex-shrink-0"
                           style={{ backgroundColor: family.color }}
                         />
-                        <span className="text-sm font-semibold text-gray-800">{family.name}</span>
+                        <span className="text-sm font-semibold text-gray-100">{family.name}</span>
                       </div>
                       <button
                         onClick={() => handleDeleteFamily(family.id)}
-                        className="text-gray-300 hover:text-red-400 text-xs"
+                        className="text-gray-600 hover:text-red-400 text-xs"
                         title="Remove family"
                       >
                         ✕
@@ -262,7 +263,7 @@ export default function TripPlannerPage() {
                             />
                             <button
                               onClick={() => handleDeletePerson(person.id)}
-                              className="text-gray-300 hover:text-red-400 text-xs leading-none"
+                              className="text-gray-600 hover:text-red-400 text-xs leading-none"
                               onPointerDown={(e) => e.stopPropagation()}
                             >
                               ✕
@@ -282,7 +283,7 @@ export default function TripPlannerPage() {
                           value={newPersonName}
                           onChange={(e) => setNewPersonName(e.target.value)}
                           placeholder="Name"
-                          className="flex-1 border border-gray-300 rounded px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className="flex-1 border border-gray-600 bg-gray-800 text-gray-100 rounded px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                           onKeyDown={(e) => e.key === 'Escape' && setShowPersonForm(null)}
                         />
                         <button
@@ -296,7 +297,7 @@ export default function TripPlannerPage() {
                     ) : (
                       <button
                         onClick={() => { setShowPersonForm(family.id); setNewPersonName('') }}
-                        className="pl-5 text-xs text-gray-400 hover:text-blue-500 mt-0.5"
+                        className="pl-5 text-xs text-gray-500 hover:text-blue-500 mt-0.5"
                       >
                         + Add person
                       </button>
@@ -313,7 +314,7 @@ export default function TripPlannerPage() {
                       value={newFamilyName}
                       onChange={(e) => setNewFamilyName(e.target.value)}
                       placeholder="New family name..."
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full border border-gray-700 bg-gray-800 text-gray-100 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                     <div className="flex items-center gap-1 flex-wrap">
                       {FAMILY_COLORS.map((c) => (
@@ -321,7 +322,7 @@ export default function TripPlannerPage() {
                           key={c}
                           type="button"
                           onClick={() => setNewFamilyColor(c)}
-                          className={`w-5 h-5 rounded-full border-2 ${newFamilyColor === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                          className={`w-5 h-5 rounded-full border-2 ${newFamilyColor === c ? 'border-white scale-110' : 'border-transparent'}`}
                           style={{ backgroundColor: c }}
                         />
                       ))}
@@ -339,8 +340,8 @@ export default function TripPlannerPage() {
 
               {/* Unassigned people */}
               {unassignedPeople.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Unassigned</h3>
+                <div className="mt-2 pt-2 border-t border-gray-800">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Unassigned</h3>
                   <SidebarDropZone>
                     <div className="flex flex-wrap gap-1">
                       {unassignedPeople.map((person) => (
@@ -353,7 +354,7 @@ export default function TripPlannerPage() {
                           />
                           <button
                             onClick={() => handleDeletePerson(person.id)}
-                            className="text-gray-300 hover:text-red-400 text-xs"
+                            className="text-gray-600 hover:text-red-400 text-xs"
                             onPointerDown={(e) => e.stopPropagation()}
                           >
                             ✕
@@ -377,7 +378,7 @@ export default function TripPlannerPage() {
                       value={newPersonName}
                       onChange={(e) => setNewPersonName(e.target.value)}
                       placeholder="Name"
-                      className="flex-1 border border-gray-300 rounded px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="flex-1 border border-gray-600 bg-gray-800 text-gray-100 rounded px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                       onKeyDown={(e) => e.key === 'Escape' && setShowPersonForm(null)}
                     />
                     <button
@@ -391,7 +392,7 @@ export default function TripPlannerPage() {
                 ) : (
                   <button
                     onClick={() => { setShowPersonForm('unassigned'); setNewPersonName('') }}
-                    className="text-xs text-gray-400 hover:text-blue-500"
+                    className="text-xs text-gray-500 hover:text-blue-500"
                   >
                     + Add unassigned person
                   </button>
@@ -403,7 +404,7 @@ export default function TripPlannerPage() {
           {/* Main content */}
           <main className="flex-1 overflow-y-auto p-6">
             {trip.rooms.length === 0 ? (
-              <div className="text-center py-20 text-gray-400">
+              <div className="text-center py-20 text-gray-500">
                 <p className="text-lg mb-3">No rooms yet.</p>
                 <Link
                   href={`/trips/${id}/setup`}
@@ -416,9 +417,9 @@ export default function TripPlannerPage() {
               <div className="space-y-8">
                 {trip.rooms.map((room) => (
                   <section key={room.id}>
-                    <h2 className="text-lg font-bold text-gray-800 mb-3">{room.name}</h2>
+                    <h2 className="text-lg font-bold text-gray-100 mb-3">{room.name}</h2>
                     {room.beds.length === 0 ? (
-                      <p className="text-sm text-gray-400 italic">No beds in this room.</p>
+                      <p className="text-sm text-gray-500 italic">No beds in this room.</p>
                     ) : (
                       <div className="flex flex-wrap gap-3">
                         {room.beds.map((bed) => (

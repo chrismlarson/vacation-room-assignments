@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { apiFetch } from '@/lib/api'
 
 export default function NewTripPage() {
   const router = useRouter()
@@ -19,7 +20,7 @@ export default function NewTripPage() {
     }
     setLoading(true)
     try {
-      const res = await fetch('/api/trips', {
+      const res = await apiFetch('/api/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), listingUrl: listingUrl.trim() || null }),
@@ -36,16 +37,16 @@ export default function NewTripPage() {
   return (
     <main className="max-w-lg mx-auto px-4 py-10">
       <div className="mb-6">
-        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-300">
           ← Back to trips
         </Link>
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">New Trip</h1>
+      <h1 className="text-2xl font-bold text-gray-50 mb-6">New Trip</h1>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-700 rounded-xl p-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-300 mb-1">
             Trip Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -53,21 +54,21 @@ export default function NewTripPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Lake Tahoe 2025"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-600 bg-gray-800 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Listing URL <span className="text-gray-400 font-normal">(optional)</span>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Listing URL <span className="text-gray-500 font-normal">(optional)</span>
           </label>
           <input
             type="url"
             value={listingUrl}
             onChange={(e) => setListingUrl(e.target.value)}
             placeholder="https://airbnb.com/rooms/..."
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-600 bg-gray-800 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 

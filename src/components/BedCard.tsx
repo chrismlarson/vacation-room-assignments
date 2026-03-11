@@ -34,18 +34,18 @@ export default function BedCard({ id, type, label, assignedPeople, onUnassign }:
       ref={setNodeRef}
       className={`border-2 rounded-xl p-3 min-w-[140px] min-h-[90px] flex flex-col gap-2 transition-colors ${
         isOver
-          ? 'border-blue-400 bg-blue-50'
-          : 'border-gray-200 bg-white hover:border-gray-300'
+          ? 'border-blue-400 bg-blue-950'
+          : 'border-gray-700 bg-gray-900 hover:border-gray-600'
       }`}
     >
       <div className="flex items-center gap-1.5">
         <span className="text-base">{BED_ICONS[type] ?? '🛏️'}</span>
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-gray-700 truncate">
+          <div className="text-xs font-semibold text-gray-300 truncate">
             {label || type}
           </div>
           {label && (
-            <div className="text-xs text-gray-400">{type}</div>
+            <div className="text-xs text-gray-500">{type}</div>
           )}
         </div>
       </div>
@@ -62,7 +62,7 @@ export default function BedCard({ id, type, label, assignedPeople, onUnassign }:
           />
         ))}
         {assignedPeople.length === 0 && (
-          <span className="text-xs text-gray-300 italic">Drop here</span>
+          <span className="text-xs text-gray-600 italic">Drop here</span>
         )}
       </div>
     </div>
