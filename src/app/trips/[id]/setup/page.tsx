@@ -1,18 +1,21 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
+import { parseRoomsText } from '@/lib/parse-rooms-text'
+import type { ScrapedRoom } from '@/lib/scrape-vrbo'
 
 const BED_TYPES = ['King', 'Queen', 'Full', 'Twin', 'Sofa Bed', 'Bunk']
 
 interface Bed { id: string; type: string; label?: string | null; order: number }
 interface Room { id: string; name: string; order: number; beds: Bed[] }
-interface Trip { id: string; name: string; rooms: Room[] }
+interface Trip { id: string; name: string; listingUrl?: string | null; rooms: Room[] }
 
 export default function SetupPage() {
   const { id } = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -26,6 +29,15 @@ export default function SetupPage() {
   // Rename room
   const [editingRoom, setEditingRoom] = useState<string | null>(null)
   const [editRoomName, setEditRoomName] = useState('')
+
+  // Paste import
+  const [pasteText, setPasteText] = useState('')
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [parsedPreview, setParsedPreview] = useState<ScrapedRoom[]>([])
+  const [importing, setImporting] = useState(false)
+  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    searchParams.get('importFailed') ? { type: 'error', message: 'Auto-import failed — paste your room list below to import manually.' } : null
+  )
 
   const fetchTrip = useCallback(async () => {
     const res = await apiFetch(`/api/trips/${id}`)
@@ -101,6 +113,34 @@ export default function SetupPage() {
     await fetchTrip()
   }
 
+  function handlePasteChange(text: string) {
+    setPasteText(text)
+    setParsedPreview(text.trim() ? parseRoomsText(text) : [])
+  }
+
+  async function handlePasteImport() {
+    if (!parsedPreview.length) return
+    const hasRooms = trip!.rooms.length > 0
+    if (hasRooms && !confirm('This will delete all existing rooms and re-import from your pasted text. Continue?')) return
+    setImporting(true)
+    const res = await apiFetch(`/api/trips/${id}/rooms/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rooms: parsedPreview, clearExisting: hasRooms }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      setImportStatus({ type: 'success', message: `Imported ${data.roomsCreated} rooms.` })
+      setPasteText('')
+      setParsedPreview([])
+      setPasteOpen(false)
+      await fetchTrip()
+    } else {
+      setImportStatus({ type: 'error', message: `Import failed: ${data.error}` })
+    }
+    setImporting(false)
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>
   }
@@ -127,6 +167,65 @@ export default function SetupPage() {
           <h1 className="text-2xl font-bold text-gray-50 mt-1">Room Setup</h1>
           <p className="text-sm text-gray-400">{trip.name}</p>
         </div>
+      </div>
+
+      {/* Status banner */}
+      {importStatus && (
+        <div className={`mb-4 px-4 py-2 rounded-lg text-sm ${
+          importStatus.type === 'success'
+            ? 'bg-green-900/40 text-green-300 border border-green-700'
+            : 'bg-yellow-900/40 text-yellow-300 border border-yellow-700'
+        }`}>
+          {importStatus.message}
+        </div>
+      )}
+
+      {/* Paste import section */}
+      <div className="mb-6 bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setPasteOpen(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-300 hover:text-gray-100"
+        >
+          <span>Import rooms from listing text</span>
+          <span className="text-gray-500">{pasteOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {pasteOpen && (
+          <div className="px-4 pb-4 border-t border-gray-700 pt-3 space-y-3">
+            <p className="text-xs text-gray-500">
+              On the VRBO listing page, find the &quot;Sleeping arrangements&quot; section, select and copy all the room/bed text, then paste it below.
+            </p>
+            <textarea
+              value={pasteText}
+              onChange={e => handlePasteChange(e.target.value)}
+              rows={6}
+              placeholder={"Bedroom 1\n1 Queen Bed\nBedroom 2\n1 King Bed and 1 Sofa Bed"}
+              className="w-full border border-gray-600 bg-gray-800 text-gray-100 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {parsedPreview.length > 0 && (
+              <div className="text-xs text-gray-400 space-y-1">
+                <p className="font-medium text-gray-300">Preview ({parsedPreview.length} rooms):</p>
+                {parsedPreview.map((r, i) => (
+                  <div key={i}>
+                    <span className="text-gray-200">{r.name}</span>
+                    {' — '}
+                    {r.beds.map(b => b.type).join(', ')}
+                  </div>
+                ))}
+              </div>
+            )}
+            {pasteText.trim() && parsedPreview.length === 0 && (
+              <p className="text-xs text-yellow-500">No recognizable rooms found — check the pasted format.</p>
+            )}
+            <button
+              onClick={handlePasteImport}
+              disabled={importing || parsedPreview.length === 0}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              {importing ? 'Importing…' : `Import ${parsedPreview.length} room${parsedPreview.length !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Room list */}

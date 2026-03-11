@@ -27,7 +27,13 @@ export default function NewTripPage() {
       })
       if (!res.ok) throw new Error('Failed to create trip')
       const trip = await res.json()
-      router.push(`/trips/${trip.id}`)
+      const isVrbo = listingUrl.trim().toLowerCase().includes('vrbo.com')
+      if (isVrbo) {
+        const qs = trip.importError ? '?importFailed=1' : ''
+        router.push(`/trips/${trip.id}/setup${qs}`)
+      } else {
+        router.push(`/trips/${trip.id}`)
+      }
     } catch (err) {
       setError('Something went wrong. Please try again.')
       setLoading(false)
@@ -79,7 +85,7 @@ export default function NewTripPage() {
           disabled={loading}
           className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
         >
-          {loading ? 'Creating...' : 'Create Trip'}
+          {loading ? (listingUrl.toLowerCase().includes('vrbo.com') ? 'Creating and importing rooms...' : 'Creating...') : 'Create Trip'}
         </button>
       </form>
     </main>
