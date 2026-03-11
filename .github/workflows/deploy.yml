@@ -22,5 +22,7 @@ jobs:
             npm ci
             npm run build
             npx prisma db push
+            chown www-data:www-data prisma/prod.db prisma
+            chmod 664 prisma/prod.db
             systemctl restart vacation-room-assignments
             echo "Deploy complete"
