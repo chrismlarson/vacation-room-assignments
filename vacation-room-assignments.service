@@ -1,0 +1,21 @@
+[Unit]
+Description=Vacation Room Assignments Next.js App
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/vacation-room-assignments
+ExecStart=/usr/bin/node_modules/.bin/next start -p 3001
+# Or if using npm:
+# ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=vacation-room-assignments
+Environment=NODE_ENV=production
+Environment=DATABASE_URL=file:/var/www/vacation-room-assignments/prisma/prod.db
+
+[Install]
+WantedBy=multi-user.target

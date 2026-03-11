@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Trip {
+  id         String   @id @default(cuid())
+  name       String
+  listingUrl String?
+  createdAt  DateTime @default(now())
+  families   Family[]
+  people     Person[]
+  rooms      Room[]
+}
+
+model Family {
+  id     String   @id @default(cuid())
+  name   String
+  color  String
+  tripId String
+  trip   Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  people Person[]
+}
+
+model Person {
+  id          String       @id @default(cuid())
+  name        String
+  familyId    String?
+  tripId      String
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  family      Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  assignments Assignment[]
+}
+
+model Room {
+  id     String @id @default(cuid())
+  name   String
+  tripId String
+  order  Int    @default(0)
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  beds   Bed[]
+}
+
+model Bed {
+  id          String       @id @default(cuid())
+  label       String?
+  type        String
+  roomId      String
+  order       Int          @default(0)
+  room        Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  assignments Assignment[]
+}
+
+model Assignment {
+  id       String @id @default(cuid())
+  personId String
+  bedId    String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  bed      Bed    @relation(fields: [bedId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, bedId])
+}
