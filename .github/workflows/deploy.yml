@@ -17,7 +17,8 @@ jobs:
           script: |
             set -e
             cd /var/www/vacation-room-assignments
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             npm ci --omit=dev
             npm run build
             npx prisma db push
