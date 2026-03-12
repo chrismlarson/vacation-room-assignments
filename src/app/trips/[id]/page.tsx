@@ -67,6 +67,8 @@ export default function TripPlannerPage() {
   const [draftMode, setDraftMode] = useState('per_room')
   const [draftUrl, setDraftUrl] = useState('')
 
+  const [mobileTab, setMobileTab] = useState<'rooms' | 'people'>('rooms')
+
   const [showAddSpot, setShowAddSpot] = useState<string | null>(null) // roomId
 
   // Add family form
@@ -307,7 +309,7 @@ export default function TripPlannerPage() {
     <DndContext sensors={sensors} autoScroll={false} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex flex-col h-screen">
         {/* Header */}
-        <header className="bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center justify-between gap-4 flex-shrink-0">
+        <header className="bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center justify-between gap-4 flex-shrink-0 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm flex-shrink-0">
               ← Trips
@@ -325,11 +327,11 @@ export default function TripPlannerPage() {
             )}
           </div>
           {!editingPricing ? (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
               {cost > 0 && (
                 <span className="text-sm text-gray-400">
                   ${cost.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  {' · '}
+                  {' total · '}
                   {{ per_room: 'per room', per_bed: 'per bed', per_head: 'per person' }[costMode]}
                 </span>
               )}
@@ -341,7 +343,7 @@ export default function TripPlannerPage() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
               <span className="text-gray-400 text-sm">$</span>
               <input
                 type="number" min="0" autoFocus
@@ -390,9 +392,34 @@ export default function TripPlannerPage() {
           </Link>
         </header>
 
+        <div className="sm:hidden flex border-b border-gray-700 flex-shrink-0 bg-gray-900">
+          <button
+            onClick={() => setMobileTab('rooms')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mobileTab === 'rooms'
+                ? 'text-white border-b-2 border-blue-500'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            Rooms
+          </button>
+          <button
+            onClick={() => setMobileTab('people')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mobileTab === 'people'
+                ? 'text-white border-b-2 border-blue-500'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            People
+          </button>
+        </div>
+
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <aside className="w-64 flex-shrink-0 bg-gray-900 border-r border-gray-700 flex flex-col overflow-y-auto">
+          <aside className={`${
+            mobileTab === 'people' ? 'flex' : 'hidden'
+          } sm:flex flex-col w-full sm:w-64 flex-shrink-0 bg-gray-900 border-r border-gray-700 overflow-y-auto`}>
             <div className="p-3 flex-1">
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Families</h2>
 
@@ -576,7 +603,9 @@ export default function TripPlannerPage() {
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className={`${
+            mobileTab === 'rooms' ? 'flex-1' : 'hidden'
+          } sm:flex-1 overflow-y-auto p-3 sm:p-6`}>
             {trip.rooms.length === 0 ? (
               <div className="text-center py-20 text-gray-500">
                 <p className="text-lg mb-3">No rooms yet.</p>
