@@ -9,6 +9,18 @@ import type { ScrapedRoom } from '@/lib/scrape-vrbo'
 
 const BED_TYPES = ['King', 'Queen', 'Full', 'Twin', 'Sofa Bed', 'Bunk']
 
+const BED_ORDER: Record<string, number> = {
+  King: 0, Queen: 1, Full: 2, Twin: 3, 'Sofa Bed': 4, Bunk: 5,
+}
+const BED_SIZE: Record<string, string> = {
+  King:       'px-4 py-2 text-sm',
+  Queen:      'px-3.5 py-1.5 text-sm',
+  Full:       'px-3 py-1.5 text-xs',
+  Twin:       'px-2.5 py-1 text-xs',
+  'Sofa Bed': 'px-3 py-1.5 text-xs',
+  Bunk:       'px-2.5 py-1 text-xs',
+}
+
 interface Bed { id: string; type: string; label?: string | null; order: number }
 interface Room { id: string; name: string; order: number; beds: Bed[] }
 interface Trip { id: string; name: string; listingUrl?: string | null; rooms: Room[] }
@@ -295,22 +307,25 @@ export default function SetupPage() {
                   <p className="text-sm text-gray-500 italic mb-3">No beds yet.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {room.beds.map((bed) => (
-                      <div
-                        key={bed.id}
-                        className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-3 py-1.5 text-sm"
-                      >
-                        <span className="font-medium text-gray-100">
-                          {bed.label ? `${bed.label} (${bed.type})` : bed.type}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteBed(bed.id)}
-                          className="text-gray-600 hover:text-red-400 text-xs font-bold"
+                    {[...room.beds]
+                      .sort((a, b) => (BED_ORDER[a.type] ?? 99) - (BED_ORDER[b.type] ?? 99))
+                      .map((bed) => (
+                        <div
+                          key={bed.id}
+                          className={`flex items-center gap-1.5 bg-gray-800 rounded-lg ${BED_SIZE[bed.type] ?? 'px-3 py-1.5 text-sm'}`}
                         >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                          <span className="font-medium text-gray-100">
+                            {bed.label ? `${bed.label} (${bed.type})` : bed.type}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteBed(bed.id)}
+                            className="text-gray-600 hover:text-red-400 text-xs font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                    }
                   </div>
                 )}
 

@@ -17,6 +17,10 @@ import { useDroppable } from '@dnd-kit/core'
 import PersonChip, { PersonChipStatic } from '@/components/PersonChip'
 import BedCard from '@/components/BedCard'
 
+const BED_ORDER: Record<string, number> = {
+  King: 0, Queen: 1, Full: 2, Twin: 3, 'Sofa Bed': 4, Bunk: 5,
+}
+
 const FAMILY_COLORS = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
@@ -414,15 +418,17 @@ export default function TripPlannerPage() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {trip.rooms.map((room) => (
-                  <section key={room.id}>
-                    <h2 className="text-lg font-bold text-gray-100 mb-3">{room.name}</h2>
+                  <section key={room.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
+                    <h2 className="text-base font-bold text-gray-100 mb-3">{room.name}</h2>
                     {room.beds.length === 0 ? (
                       <p className="text-sm text-gray-500 italic">No beds in this room.</p>
                     ) : (
                       <div className="flex flex-wrap gap-3">
-                        {room.beds.map((bed) => (
+                        {[...room.beds]
+                          .sort((a, b) => (BED_ORDER[a.type] ?? 99) - (BED_ORDER[b.type] ?? 99))
+                          .map((bed) => (
                           <BedCard
                             key={bed.id}
                             id={bed.id}

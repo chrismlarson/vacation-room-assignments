@@ -3,6 +3,15 @@
 import { useDroppable } from '@dnd-kit/core'
 import PersonChip from './PersonChip'
 
+const BED_MIN_WIDTH: Record<string, string> = {
+  King:       'min-w-[180px]',
+  Queen:      'min-w-[160px]',
+  Full:       'min-w-[140px]',
+  Twin:       'min-w-[120px]',
+  'Sofa Bed': 'min-w-[140px]',
+  Bunk:       'min-w-[120px]',
+}
+
 const BED_ICONS: Record<string, string> = {
   King: '👑',
   Queen: '🛏️',
@@ -32,7 +41,7 @@ export default function BedCard({ id, type, label, assignedPeople, onUnassign }:
   return (
     <div
       ref={setNodeRef}
-      className={`border-2 rounded-xl p-3 min-w-[140px] min-h-[90px] flex flex-col gap-2 transition-colors ${
+      className={`border-2 rounded-xl p-3 ${BED_MIN_WIDTH[type] ?? 'min-w-[140px]'} min-h-[90px] flex flex-col gap-2 transition-colors ${
         isOver
           ? 'border-blue-400 bg-blue-950'
           : 'border-gray-700 bg-gray-900 hover:border-gray-600'

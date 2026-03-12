@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import TripCard from './components/TripCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,39 +37,7 @@ export default async function HomePage() {
       ) : (
         <div className="space-y-3">
           {trips.map((trip) => (
-            <Link
-              key={trip.id}
-              href={`/trips/${trip.id}`}
-              className="block bg-gray-900 border border-gray-700 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-50">{trip.name}</h2>
-                  {trip.listingUrl && (
-                    <a
-                      href={trip.listingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm text-blue-500 hover:underline mt-1 inline-block"
-                    >
-                      View listing
-                    </a>
-                  )}
-                </div>
-                <div className="text-right text-sm text-gray-500">
-                  <div>{trip._count.people} people</div>
-                  <div>{trip._count.rooms} rooms</div>
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-gray-500">
-                {new Date(trip.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </div>
-            </Link>
+            <TripCard key={trip.id} trip={trip} />
           ))}
         </div>
       )}
