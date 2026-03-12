@@ -33,10 +33,10 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const { name, listingUrl } = await req.json()
+  const { name, listingUrl, totalCost, costMode } = await req.json()
   const trip = await prisma.trip.update({
     where: { id: params.id },
-    data: { name, listingUrl },
+    data: { name, listingUrl, totalCost, costMode },
   })
   return NextResponse.json(trip)
 }

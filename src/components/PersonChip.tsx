@@ -8,9 +8,10 @@ interface PersonChipProps {
   color: string
   onRemove?: () => void
   compact?: boolean
+  unassigned?: boolean
 }
 
-export default function PersonChip({ id, name, color, onRemove, compact }: PersonChipProps) {
+export default function PersonChip({ id, name, color, onRemove, compact, unassigned }: PersonChipProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `person-${id}`,
     data: { personId: id, name, color },
@@ -24,9 +25,9 @@ export default function PersonChip({ id, name, color, onRemove, compact }: Perso
     <div
       ref={setNodeRef}
       style={{ ...style, backgroundColor: color, opacity: isDragging ? 0.4 : 1 }}
-      className={`inline-flex items-center gap-1 rounded-full text-white text-xs font-medium cursor-grab active:cursor-grabbing select-none touch-none ${
-        compact ? 'px-2 py-0.5' : 'px-3 py-1'
-      }`}
+      className={`inline-flex items-center gap-1 rounded-full text-white text-xs font-medium cursor-grab active:cursor-grabbing select-none touch-none
+        ${compact ? 'px-2 py-0.5' : 'px-3 py-1'}
+        ${unassigned ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-900' : ''}`}
       {...listeners}
       {...attributes}
     >

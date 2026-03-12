@@ -12,13 +12,30 @@ export async function GET() {
   return NextResponse.json(trips)
 }
 
+function slugify(name: string): string {
+  return name.trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+async function uniqueSlug(name: string): Promise<string> {
+  const base = slugify(name) || 'trip'
+  let slug = base
+  let i = 1
+  while (await prisma.trip.findUnique({ where: { id: slug } })) {
+    slug = `${base}-${i++}`
+  }
+  return slug
+}
+
 export async function POST(req: Request) {
   const { name, listingUrl } = await req.json()
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Name required' }, { status: 400 })
   }
+  const id = await uniqueSlug(name)
   const trip = await prisma.trip.create({
-    data: { name: name.trim(), listingUrl: listingUrl || null },
+    data: { id, name: name.trim(), listingUrl: listingUrl || null },
   })
 
   let importError: string | null = null

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -18,13 +18,15 @@ import PersonChip, { PersonChipStatic } from '@/components/PersonChip'
 import BedCard from '@/components/BedCard'
 
 const BED_ORDER: Record<string, number> = {
-  King: 0, Queen: 1, Full: 2, Twin: 3, 'Sofa Bed': 4, Bunk: 5,
+  King: 0, Queen: 1, Full: 2, Twin: 3, 'Sofa Bed': 4, Bunk: 5, Floor: 6, 'Pack & Play': 7,
 }
 
 const FAMILY_COLORS = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
-  '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
+  '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#06B6D4',
 ]
+
+const FLOOR_TYPES = new Set(['Floor', 'Pack & Play'])
 
 interface Family { id: string; name: string; color: string }
 interface Person { id: string; name: string; familyId: string | null; family?: Family | null }
@@ -35,6 +37,8 @@ interface Trip {
   id: string
   name: string
   listingUrl?: string | null
+  totalCost?: number | null
+  costMode?: string | null
   families: Family[]
   people: Person[]
   rooms: Room[]
@@ -57,6 +61,11 @@ export default function TripPlannerPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeChip, setActiveChip] = useState<{ personId: string; name: string; color: string } | null>(null)
+  const [totalCost, setTotalCost] = useState<number | ''>('')
+  const [costMode, setCostMode] = useState('per_room')
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [showAddSpot, setShowAddSpot] = useState<string | null>(null) // roomId
 
   // Add family form
   const [newFamilyName, setNewFamilyName] = useState('')
@@ -73,11 +82,35 @@ export default function TripPlannerPage() {
 
   const fetchTrip = useCallback(async () => {
     const res = await apiFetch(`/api/trips/${id}`)
-    if (res.ok) setTrip(await res.json())
+    if (res.ok) {
+      const data = await res.json()
+      setTrip(data)
+      setTotalCost(data.totalCost ?? '')
+      setCostMode(data.costMode ?? 'per_room')
+    }
     setLoading(false)
   }, [id])
 
   useEffect(() => { fetchTrip() }, [fetchTrip])
+
+  async function savePricing(cost: number | '', mode: string) {
+    if (!trip) return
+    await apiFetch(`/api/trips/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: trip.name,
+        listingUrl: trip.listingUrl,
+        totalCost: cost === '' ? null : cost,
+        costMode: mode,
+      }),
+    })
+  }
+
+  function scheduleSave(cost: number | '', mode: string) {
+    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current)
+    saveDebounceRef.current = setTimeout(() => savePricing(cost, mode), 600)
+  }
 
   // Compute assignment map: personId → bedId
   const assignmentMap = new Map<string, string>()
@@ -87,7 +120,7 @@ export default function TripPlannerPage() {
     )
   )
 
-  const unassignedPeople = trip?.people.filter((p) => !assignmentMap.has(p.id)) ?? []
+  const unassignedPeople = trip?.people.filter((p) => !p.familyId) ?? []
 
   function getPeopleForBed(bed: Bed): { id: string; name: string; color: string }[] {
     return bed.assignments.map((a) => ({
@@ -140,6 +173,21 @@ export default function TripPlannerPage() {
 
   async function handleDeletePerson(personId: string) {
     await apiFetch(`/api/trips/${id}/people/${personId}`, { method: 'DELETE' })
+    await fetchTrip()
+  }
+
+  async function handleAddFloorSpot(roomId: string, type: string) {
+    await apiFetch(`/api/trips/${id}/beds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId, type, label: null }),
+    })
+    await fetchTrip()
+    setShowAddSpot(null)
+  }
+
+  async function handleDeleteBed(bedId: string) {
+    await apiFetch(`/api/trips/${id}/beds/${bedId}`, { method: 'DELETE' })
     await fetchTrip()
   }
 
@@ -198,8 +246,54 @@ export default function TripPlannerPage() {
     )
   }
 
+  // Cost calculations
+  const cost = typeof totalCost === 'number' && totalCost > 0 ? totalCost : 0
+  const roomCount = trip.rooms.length
+  const bedCount = trip.rooms.reduce(
+    (n, r) => n + r.beds.filter(b => !FLOOR_TYPES.has(b.type)).length, 0
+  )
+  const personCount = trip.people.length
+  const unitCost =
+    costMode === 'per_room' ? (roomCount > 0 ? cost / roomCount : 0)
+    : costMode === 'per_bed'  ? (bedCount  > 0 ? cost / bedCount  : 0)
+    : /* per_head */            (personCount > 0 ? cost / personCount : 0)
+
+  const familyCostMap = new Map<string, number>()
+  if (cost > 0) {
+    if (costMode === 'per_room') {
+      trip.rooms.forEach((room) => {
+        const peopleInRoom = room.beds.flatMap((b) => b.assignments.map((a) => a.person))
+        const total = peopleInRoom.length
+        if (total === 0) return
+        peopleInRoom.forEach((person) => {
+          if (!person.familyId) return
+          familyCostMap.set(person.familyId, (familyCostMap.get(person.familyId) ?? 0) + unitCost / total)
+        })
+      })
+    } else if (costMode === 'per_bed') {
+      trip.rooms.forEach((room) =>
+        room.beds.filter(b => !FLOOR_TYPES.has(b.type)).forEach((bed) => {
+          const occupants = bed.assignments.length
+          if (occupants === 0) return
+          bed.assignments.forEach((a) => {
+            if (!a.person.familyId) return
+            familyCostMap.set(
+              a.person.familyId,
+              (familyCostMap.get(a.person.familyId) ?? 0) + unitCost / occupants
+            )
+          })
+        })
+      )
+    } else {
+      trip.families.forEach((family) => {
+        const count = trip.people.filter((p) => p.familyId === family.id).length
+        familyCostMap.set(family.id, count * unitCost)
+      })
+    }
+  }
+
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} autoScroll={false} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex flex-col h-screen">
         {/* Header */}
         <header className="bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center justify-between gap-4 flex-shrink-0">
@@ -218,6 +312,37 @@ export default function TripPlannerPage() {
                 View listing ↗
               </a>
             )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1">
+              <span className="text-gray-400 text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                value={totalCost}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? '' : Number(e.target.value)
+                  setTotalCost(val)
+                  scheduleSave(val, costMode)
+                }}
+                onBlur={() => {
+                  if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current)
+                  savePricing(totalCost, costMode)
+                }}
+                placeholder="Total cost"
+                className="w-28 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            </div>
+            <span className="text-sm text-gray-400 flex-shrink-0">Split by</span>
+            <select
+              value={costMode}
+              onChange={(e) => { setCostMode(e.target.value); savePricing(totalCost, e.target.value) }}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              <option value="per_room">room</option>
+              <option value="per_bed">bed</option>
+              <option value="per_head">person</option>
+            </select>
           </div>
           <Link
             href={`/trips/${id}/setup`}
@@ -246,6 +371,11 @@ export default function TripPlannerPage() {
                         />
                         <span className="text-sm font-semibold text-gray-100">{family.name}</span>
                       </div>
+                      {cost > 0 && (
+                        <span className="text-xs text-gray-400 ml-auto mr-1">
+                          ${(familyCostMap.get(family.id) ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                      )}
                       <button
                         onClick={() => handleDeleteFamily(family.id)}
                         className="text-gray-600 hover:text-red-400 text-xs"
@@ -264,6 +394,7 @@ export default function TripPlannerPage() {
                               name={person.name}
                               color={family.color}
                               compact
+                              unassigned={!assignmentMap.has(person.id)}
                             />
                             <button
                               onClick={() => handleDeletePerson(person.id)}
@@ -355,6 +486,7 @@ export default function TripPlannerPage() {
                             name={person.name}
                             color={person.family?.color ?? '#94A3B8'}
                             compact
+                            unassigned={!assignmentMap.has(person.id)}
                           />
                           <button
                             onClick={() => handleDeletePerson(person.id)}
@@ -421,7 +553,12 @@ export default function TripPlannerPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {trip.rooms.map((room) => (
                   <section key={room.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-                    <h2 className="text-base font-bold text-gray-100 mb-3">{room.name}</h2>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-bold text-gray-100">{room.name}</h2>
+                      {cost > 0 && costMode === 'per_room' && (
+                        <span className="text-xs text-gray-400">${unitCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                      )}
+                    </div>
                     {room.beds.length === 0 ? (
                       <p className="text-sm text-gray-500 italic">No beds in this room.</p>
                     ) : (
@@ -436,10 +573,26 @@ export default function TripPlannerPage() {
                             label={bed.label}
                             assignedPeople={getPeopleForBed(bed)}
                             onUnassign={handleUnassign}
+                            cost={cost > 0 && costMode === 'per_bed' && !FLOOR_TYPES.has(bed.type) ? unitCost : undefined}
+                            onDelete={FLOOR_TYPES.has(bed.type) ? () => handleDeleteBed(bed.id) : undefined}
                           />
                         ))}
                       </div>
                     )}
+                    <div className="flex justify-end mt-2">
+                      {showAddSpot === room.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleAddFloorSpot(room.id, 'Floor')}
+                            className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded hover:bg-gray-600">Floor</button>
+                          <button onClick={() => handleAddFloorSpot(room.id, 'Pack & Play')}
+                            className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded hover:bg-gray-600">Pack &amp; Play</button>
+                          <button onClick={() => setShowAddSpot(null)} className="text-gray-500 hover:text-gray-300 text-xs">✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowAddSpot(room.id)}
+                          className="text-gray-500 hover:text-blue-400 text-sm font-bold leading-none">+</button>
+                      )}
+                    </div>
                   </section>
                 ))}
               </div>
@@ -448,7 +601,7 @@ export default function TripPlannerPage() {
         </div>
       </div>
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeChip ? (
           <PersonChipStatic name={activeChip.name} color={activeChip.color} />
         ) : null}

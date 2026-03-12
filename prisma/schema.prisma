@@ -8,9 +8,11 @@ datasource db {
 }
 
 model Trip {
-  id         String   @id @default(cuid())
+  id         String   @id
   name       String
   listingUrl String?
+  totalCost  Float?
+  costMode   String   @default("per_room")
   createdAt  DateTime @default(now())
   families   Family[]
   people     Person[]
