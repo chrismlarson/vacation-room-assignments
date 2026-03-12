@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -61,9 +61,11 @@ export default function TripPlannerPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeChip, setActiveChip] = useState<{ personId: string; name: string; color: string } | null>(null)
-  const [totalCost, setTotalCost] = useState<number | ''>('')
-  const [costMode, setCostMode] = useState('per_room')
-  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [editingPricing, setEditingPricing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [draftCost, setDraftCost] = useState<number | ''>('')
+  const [draftMode, setDraftMode] = useState('per_room')
+  const [draftUrl, setDraftUrl] = useState('')
 
   const [showAddSpot, setShowAddSpot] = useState<string | null>(null) // roomId
 
@@ -85,31 +87,39 @@ export default function TripPlannerPage() {
     if (res.ok) {
       const data = await res.json()
       setTrip(data)
-      setTotalCost(data.totalCost ?? '')
-      setCostMode(data.costMode ?? 'per_room')
     }
     setLoading(false)
   }, [id])
 
   useEffect(() => { fetchTrip() }, [fetchTrip])
 
-  async function savePricing(cost: number | '', mode: string) {
-    if (!trip) return
-    await apiFetch(`/api/trips/${id}`, {
+  function openEditPricing() {
+    setDraftCost(trip!.totalCost ?? '')
+    setDraftMode(trip!.costMode ?? 'per_room')
+    setDraftUrl(trip!.listingUrl ?? '')
+    setEditingPricing(true)
+  }
+
+  async function handleSavePricing() {
+    setSaving(true)
+    const res = await apiFetch(`/api/trips/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: trip.name,
-        listingUrl: trip.listingUrl,
-        totalCost: cost === '' ? null : cost,
-        costMode: mode,
+        name: trip!.name,
+        listingUrl: draftUrl.trim() || null,
+        totalCost: draftCost === '' ? null : draftCost,
+        costMode: draftMode,
       }),
     })
+    setSaving(false)
+    if (!res.ok) return
+    await fetchTrip()
+    setEditingPricing(false)
   }
 
-  function scheduleSave(cost: number | '', mode: string) {
-    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current)
-    saveDebounceRef.current = setTimeout(() => savePricing(cost, mode), 600)
+  function handleCancelPricing() {
+    setEditingPricing(false)
   }
 
   // Compute assignment map: personId → bedId
@@ -247,7 +257,8 @@ export default function TripPlannerPage() {
   }
 
   // Cost calculations
-  const cost = typeof totalCost === 'number' && totalCost > 0 ? totalCost : 0
+  const cost = typeof trip.totalCost === 'number' && trip.totalCost > 0 ? trip.totalCost : 0
+  const costMode = trip.costMode ?? 'per_room'
   const roomCount = trip.rooms.length
   const bedCount = trip.rooms.reduce(
     (n, r) => n + r.beds.filter(b => !FLOOR_TYPES.has(b.type)).length, 0
@@ -302,7 +313,7 @@ export default function TripPlannerPage() {
               ← Trips
             </Link>
             <h1 className="text-lg font-bold text-gray-50 truncate">{trip.name}</h1>
-            {trip.listingUrl && (
+            {trip.listingUrl && !editingPricing && (
               <a
                 href={trip.listingUrl}
                 target="_blank"
@@ -313,37 +324,64 @@ export default function TripPlannerPage() {
               </a>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex items-center gap-1">
+          {!editingPricing ? (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {cost > 0 && (
+                <span className="text-sm text-gray-400">
+                  ${cost.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  {' · '}
+                  {{ per_room: 'per room', per_bed: 'per bed', per_head: 'per person' }[costMode]}
+                </span>
+              )}
+              <button
+                onClick={openEditPricing}
+                className="flex-shrink-0 bg-gray-800 text-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
+              >
+                Edit Details
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <span className="text-gray-400 text-sm">$</span>
               <input
-                type="number"
-                min="0"
-                value={totalCost}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? '' : Number(e.target.value)
-                  setTotalCost(val)
-                  scheduleSave(val, costMode)
-                }}
-                onBlur={() => {
-                  if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current)
-                  savePricing(totalCost, costMode)
-                }}
+                type="number" min="0" autoFocus
+                value={draftCost}
+                onChange={(e) => setDraftCost(e.target.value === '' ? '' : Number(e.target.value))}
                 placeholder="Total cost"
-                className="w-28 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
+              <span className="text-sm text-gray-400">Split by</span>
+              <select
+                value={draftMode}
+                onChange={(e) => setDraftMode(e.target.value)}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              >
+                <option value="per_room">room</option>
+                <option value="per_bed">bed</option>
+                <option value="per_head">person</option>
+              </select>
+              <input
+                type="url"
+                value={draftUrl}
+                onChange={(e) => setDraftUrl(e.target.value)}
+                placeholder="Listing URL"
+                className="w-44 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <button
+                onClick={handleSavePricing}
+                disabled={saving}
+                className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save Details'}
+              </button>
+              <button
+                onClick={handleCancelPricing}
+                className="text-gray-400 hover:text-gray-200 text-xs"
+              >
+                Cancel
+              </button>
             </div>
-            <span className="text-sm text-gray-400 flex-shrink-0">Split by</span>
-            <select
-              value={costMode}
-              onChange={(e) => { setCostMode(e.target.value); savePricing(totalCost, e.target.value) }}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            >
-              <option value="per_room">room</option>
-              <option value="per_bed">bed</option>
-              <option value="per_head">person</option>
-            </select>
-          </div>
+          )}
           <Link
             href={`/trips/${id}/setup`}
             className="flex-shrink-0 bg-gray-800 text-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"

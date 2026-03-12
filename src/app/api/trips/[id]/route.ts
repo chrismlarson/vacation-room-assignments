@@ -33,12 +33,17 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const { name, listingUrl, totalCost, costMode } = await req.json()
-  const trip = await prisma.trip.update({
-    where: { id: params.id },
-    data: { name, listingUrl, totalCost, costMode },
-  })
-  return NextResponse.json(trip)
+  try {
+    const { name, listingUrl, totalCost, costMode } = await req.json()
+    const trip = await prisma.trip.update({
+      where: { id: params.id },
+      data: { name, listingUrl, totalCost, costMode },
+    })
+    return NextResponse.json(trip)
+  } catch (e) {
+    console.error('PUT /api/trips/[id] error:', e)
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
 }
 
 export async function DELETE(

@@ -6,6 +6,8 @@ interface Trip {
   id: string
   name: string
   listingUrl: string | null
+  totalCost?: number | null
+  costMode?: string | null
   createdAt: Date | string
   _count: { people: number; rooms: number }
 }
@@ -41,6 +43,11 @@ export default function TripCard({ trip }: { trip: Trip }) {
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
+          {trip.totalCost && trip.totalCost > 0 && (
+            <div className="text-sm font-medium text-gray-300">
+              ${trip.totalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            </div>
+          )}
           <div className="text-right text-sm text-gray-500">
             <div>{trip._count.people} people</div>
             <div>{trip._count.rooms} rooms</div>
