@@ -6,7 +6,7 @@ interface Trip {
   id: string
   name: string
   listingUrl: string | null
-  createdAt: string
+  createdAt: Date | string
   _count: { people: number; rooms: number }
 }
 
