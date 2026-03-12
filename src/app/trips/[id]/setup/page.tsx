@@ -155,7 +155,7 @@ export default function SetupPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
+    <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <Link
@@ -229,7 +229,7 @@ export default function SetupPage() {
       </div>
 
       {/* Room list */}
-      <div className="space-y-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {trip.rooms.length === 0 && (
           <p className="text-gray-500 text-sm italic">No rooms yet. Add one below.</p>
         )}
